@@ -10,16 +10,16 @@ https://aws.amazon.com/startups/contact-us
 
 The repository is organized by domain. Below is a summary of the areas covered:
 
-| Domain | APJ Lead | Areas Covered |
-|--------|--------|---------------|
-| [Agentic Workloads](./agentic-workloads) | Yudho (diponego@) | Agentic Patterns, Model Selection & Agent Platform |
-| [Agentic Coding](./ai-coding-assistants) | Jungseob (jungseob@) | Kiro, Claude Code, AI-DLC Practices, Kiro Autonomous & Frontier Agents |
-| [Analytics](./analytics) | Benny (chunbenn@) | OpenSearch, Ingestion, Streaming, Processing, Cloud Data Warehouse, Data Lake, S3 Tables, QuickSight |
-| [Databases](./databases) | David (dmacnz@) | Relational, Non-relational, Timestream, Vector Databases |
-| [AI Infra](./ai-infra) | Yoshitaka (hariby@) | SageMaker, Fine-tuning, Inference, Training |
-| [Modern Applications](./modern-applications) | Omisha (omishagp@) | AI on EKS, ML Orchestration, Containers, Serverless & Event-Driven Architecture |
-| [Security & Compliance](./security) | Jiyoung (leejiyou@) | Identity, IDP, Compliance, Cloud and Data Sovereignty |
-| [Amazon Connect](./connect) | Phone (phonek@) | Voice, Call Centers & Back Offices |
+| Domain | Areas Covered |
+|--------|---------------|
+| [Agentic Workloads](./agentic-workloads) | Agentic Patterns, Model Selection & Agent Platform |
+| [Agentic Coding](./ai-coding-assistants) | Kiro, Claude Code, AI-DLC Practices, Kiro Autonomous & Frontier Agents |
+| [Analytics](./analytics) | OpenSearch, Ingestion, Streaming, Processing, Cloud Data Warehouse, Data Lake, S3 Tables, QuickSight |
+| [Databases](./databases) | Relational, Non-relational, Timestream, Vector Databases |
+| [AI Infra](./ai-infra) | SageMaker, Fine-tuning, Inference, Training |
+| [Modern Applications](./modern-applications) | AI on EKS, ML Orchestration, Containers, Serverless & Event-Driven Architecture |
+| [Security & Compliance](./security) | Identity, IDP, Compliance, Cloud and Data Sovereignty |
+| [Amazon Connect](./connect) | Voice, Call Centers & Back Offices |
 
 ## How to use this repository
 
