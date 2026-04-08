@@ -2,14 +2,14 @@
 set -euo pipefail
 
 # ──────────────────────────────────────────────
-# Claude Code Proxy on AWS — 배포 스크립트
+# Claude Code Proxy on AWS — Deployment Script
 # ──────────────────────────────────────────────
 
 INFRA_DIR="$(cd "$(dirname "$0")/../infra" && pwd)"
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CDK_JSON="$INFRA_DIR/cdk.json"
 
-# 색상
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -23,63 +23,63 @@ error() { echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
 prompt() { echo -en "${CYAN}▸${NC} $*"; }
 
 # ──────────────────────────────────────────────
-# 1. 사전 요구사항 확인
+# 1. Check Prerequisites
 # ──────────────────────────────────────────────
 check_prerequisites() {
-    info "사전 요구사항 확인 중..."
+    info "Checking prerequisites..."
 
-    command -v aws >/dev/null 2>&1 || error "AWS CLI가 설치되어 있지 않습니다."
-    command -v cdk >/dev/null 2>&1 || error "CDK CLI가 설치되어 있지 않습니다. (npm install -g aws-cdk)"
-    command -v docker >/dev/null 2>&1 || error "Docker가 설치되어 있지 않습니다."
-    command -v uv >/dev/null 2>&1 || error "uv가 설치되어 있지 않습니다."
-    command -v jq >/dev/null 2>&1 || error "jq가 설치되어 있지 않습니다."
+    command -v aws >/dev/null 2>&1 || error "AWS CLI is not installed."
+    command -v cdk >/dev/null 2>&1 || error "CDK CLI is not installed. (npm install -g aws-cdk)"
+    command -v docker >/dev/null 2>&1 || error "Docker is not installed."
+    command -v uv >/dev/null 2>&1 || error "uv is not installed."
+    command -v jq >/dev/null 2>&1 || error "jq is not installed."
 
-    # Docker 실행 확인
-    docker info >/dev/null 2>&1 || error "Docker 데몬이 실행중이지 않습니다."
+    # Check Docker is running
+    docker info >/dev/null 2>&1 || error "Docker daemon is not running."
 
-    ok "사전 요구사항 확인 완료"
+    ok "All prerequisites satisfied"
 }
 
 # ──────────────────────────────────────────────
-# 2. AWS 인증 확인
+# 2. Check AWS Authentication
 # ──────────────────────────────────────────────
 check_aws_auth() {
-    info "AWS 인증 확인 중..."
+    info "Checking AWS authentication..."
 
     local identity
-    identity=$(aws sts get-caller-identity 2>/dev/null) || error "AWS 인증 실패. 'aws configure' 또는 'aws sso login'을 실행하세요."
+    identity=$(aws sts get-caller-identity 2>/dev/null) || error "AWS authentication failed. Run 'aws configure' or 'aws sso login'."
 
     local account
     account=$(echo "$identity" | jq -r '.Account')
 
-    ok "AWS 계정: $account"
+    ok "AWS Account: $account"
     export CDK_DEFAULT_ACCOUNT="$account"
 }
 
 # ──────────────────────────────────────────────
-# 3. 리전 선택
+# 3. Select Region
 # ──────────────────────────────────────────────
 select_region() {
     local current_region
     current_region=$(jq -r '.context.region // "ap-northeast-2"' "$CDK_JSON")
 
-    info "현재 설정된 리전: $current_region"
-    prompt "배포할 리전 [$current_region]: "
+    info "Current configured region: $current_region"
+    prompt "Deployment region [$current_region]: "
     read -er input_region
 
     local region="${input_region:-$current_region}"
 
     if [[ "$region" != "$current_region" ]]; then
         _set_cdk_context "region" "$region"
-        ok "리전 변경: $region"
+        ok "Region changed: $region"
     fi
 
     export CDK_DEFAULT_REGION="$region"
-    ok "배포 리전: $region"
+    ok "Deployment region: $region"
 }
 
 # ──────────────────────────────────────────────
-# 4. Identity Store ID 선택
+# 4. Select Identity Store ID
 # ──────────────────────────────────────────────
 select_identity_store_id() {
     local region current_id discovered_id
@@ -89,7 +89,7 @@ select_identity_store_id() {
     discovered_id=$(_discover_identity_store_id "$region")
 
     if [[ -n "$discovered_id" && "$current_id" != "$discovered_id" ]]; then
-        info "AWS에서 활성 Identity Store ID를 찾았습니다: $discovered_id (리전: ${DISCOVERED_IDENTITY_STORE_REGION:-$region})"
+        info "Found active Identity Store ID from AWS: $discovered_id (region: ${DISCOVERED_IDENTITY_STORE_REGION:-$region})"
     fi
 
     local default_id="$current_id"
@@ -101,25 +101,25 @@ select_identity_store_id() {
         prompt "Identity Store ID [$default_id]: "
         read -er input_id
     else
-        warn "활성 Identity Store ID를 자동으로 찾지 못했습니다."
-        info "직접 확인 명령: aws sso-admin list-instances --region <region> --query 'Instances[].IdentityStoreId' --output text"
+        warn "Could not automatically discover an active Identity Store ID."
+        info "Manual lookup: aws sso-admin list-instances --region <region> --query 'Instances[].IdentityStoreId' --output text"
         prompt "Identity Store ID: "
         read -er input_id
     fi
 
     local identity_store_id="${input_id:-$default_id}"
     if [[ -z "$identity_store_id" || "$identity_store_id" == "placeholder" ]]; then
-        error "Identity Store ID는 필수입니다. 올바른 값을 입력하세요."
+        error "Identity Store ID is required. Please enter a valid value."
     fi
 
     if [[ "$identity_store_id" != "$current_id" ]]; then
         _set_cdk_context "identity_store_id" "$identity_store_id"
-        ok "Identity Store ID 설정 완료: $identity_store_id"
+        ok "Identity Store ID configured: $identity_store_id"
     else
-        ok "Identity Store ID 유지: $identity_store_id"
+        ok "Identity Store ID unchanged: $identity_store_id"
     fi
 
-    # Identity Store 리전 설정
+    # Identity Store region configuration
     local current_region
     current_region=$(jq -r '.context.identity_store_region // empty' "$CDK_JSON")
     local default_region="${DISCOVERED_IDENTITY_STORE_REGION:-$current_region}"
@@ -128,11 +128,11 @@ select_identity_store_id() {
     fi
 
     if [[ "$default_region" != "$region" ]]; then
-        prompt "Identity Store 리전 [$default_region]: "
+        prompt "Identity Store region [$default_region]: "
         read -er input_region
         local identity_store_region="${input_region:-$default_region}"
         _set_cdk_context "identity_store_region" "$identity_store_region"
-        ok "Identity Store 리전 설정 완료: $identity_store_region"
+        ok "Identity Store region configured: $identity_store_region"
     else
         _set_cdk_context "identity_store_region" "$region"
     fi
@@ -162,7 +162,7 @@ _discover_identity_store_id() {
 
         if [[ "$count" -gt 1 ]]; then
             DISCOVERED_IDENTITY_STORE_REGION="$r"
-            warn "활성 IAM Identity Center 인스턴스가 여러 개입니다 (리전: $r)." >&2
+            warn "Multiple active IAM Identity Center instances found (region: $r)." >&2
             echo "$instances" | jq -r '
                 .[]
                 | "  - IdentityStoreId: \(.IdentityStoreId)\n    OwnerAccountId: \(.OwnerAccountId)\n    InstanceArn: \(.InstanceArn)"
@@ -171,36 +171,37 @@ _discover_identity_store_id() {
     done
 }
 
+
 # ──────────────────────────────────────────────
-# 5. ACM 인증서 확인/생성
+# 5. Check/Create ACM Certificate
 # ──────────────────────────────────────────────
 ensure_acm_certificate() {
-    info "ACM 인증서 확인 중..."
+    info "Checking ACM certificate..."
 
     local existing_arn
     existing_arn=$(jq -r '.context.acm_certificate_arn // empty' "$CDK_JSON")
 
     if [[ -n "$existing_arn" ]]; then
-        ok "ACM 인증서 설정됨: ${existing_arn:0:60}..."
+        ok "ACM certificate configured: ${existing_arn:0:60}..."
         return
     fi
 
-    warn "ACM 인증서가 cdk.json에 설정되어 있지 않습니다."
+    warn "No ACM certificate configured in cdk.json."
     echo ""
-    echo "  1) 기존 ACM 인증서 ARN 입력"
-    echo "  2) 새 ACM 인증서 생성 (도메인 필요)"
-    echo "  3) 건너뛰기 (HTTPS 없이 HTTP만 사용)"
+    echo "  1) Enter an existing ACM certificate ARN"
+    echo "  2) Create a new ACM certificate (domain required)"
+    echo "  3) Skip (deploy with HTTP only, no HTTPS)"
     echo ""
     while true; do
-        prompt "선택 [1/2/3]: "
+        prompt "Choose [1/2/3]: "
         read -er choice
         case "${choice}" in
             1)
-                prompt "ACM 인증서 ARN: "
+                prompt "ACM certificate ARN: "
                 read -er cert_arn
-                [[ -z "$cert_arn" ]] && { warn "인증서 ARN이 비어있습니다."; continue; }
+                [[ -z "$cert_arn" ]] && { warn "Certificate ARN is empty."; continue; }
                 _set_cdk_context "acm_certificate_arn" "$cert_arn"
-                ok "ACM 인증서 설정 완료"
+                ok "ACM certificate configured"
                 break
                 ;;
             2)
@@ -208,27 +209,27 @@ ensure_acm_certificate() {
                 break
                 ;;
             3)
-                warn "HTTPS 없이 배포합니다. ALB는 HTTP(80)만 사용합니다."
+                warn "Deploying without HTTPS. ALB will use HTTP(80) only."
                 _set_cdk_context "acm_certificate_arn" ""
                 export SKIP_HTTPS=true
                 break
                 ;;
             *)
-                warn "1, 2, 3 중에서 선택하세요."
+                warn "Please choose 1, 2, or 3."
                 ;;
         esac
     done
 }
 
 _create_acm_certificate() {
-    prompt "도메인 이름 (예: proxy.example.com): "
+    prompt "Domain name (e.g., proxy.example.com): "
     read -er domain
-    [[ -z "$domain" ]] && error "도메인이 비어있습니다."
+    [[ -z "$domain" ]] && error "Domain is empty."
 
     local region
     region=$(jq -r '.context.region // "ap-northeast-2"' "$CDK_JSON")
 
-    info "ACM 인증서 요청 중: $domain"
+    info "Requesting ACM certificate: $domain"
     local cert_arn
     cert_arn=$(aws acm request-certificate \
         --domain-name "$domain" \
@@ -237,10 +238,10 @@ _create_acm_certificate() {
         --query 'CertificateArn' \
         --output text)
 
-    ok "인증서 요청 완료: $cert_arn"
+    ok "Certificate request complete: $cert_arn"
     echo ""
-    warn "DNS 검증이 필요합니다."
-    info "검증 레코드 조회 중 (최대 30초 대기)..."
+    warn "DNS validation is required."
+    info "Fetching validation records (waiting up to 30 seconds)..."
 
     local validation_info=""
     local attempt
@@ -254,7 +255,7 @@ _create_acm_certificate() {
         if [[ -n "$validation_info" && "$validation_info" != "null" ]]; then
             break
         fi
-        info "검증 레코드 대기 중... (${attempt}/6)"
+        info "Waiting for validation records... (${attempt}/6)"
     done
 
     if [[ -n "$validation_info" && "$validation_info" != "null" ]]; then
@@ -262,28 +263,28 @@ _create_acm_certificate() {
         cname_name=$(echo "$validation_info" | jq -r '.Name')
         cname_value=$(echo "$validation_info" | jq -r '.Value')
         echo ""
-        echo -e "  ${CYAN}DNS에 아래 CNAME 레코드를 추가하세요:${NC}"
+        echo -e "  ${CYAN}Add the following CNAME record to your DNS:${NC}"
         echo -e "  Name:  ${GREEN}$cname_name${NC}"
         echo -e "  Value: ${GREEN}$cname_value${NC}"
         echo ""
     else
-        warn "검증 레코드를 가져오지 못했습니다. AWS 콘솔에서 직접 확인하세요: $cert_arn"
+        warn "Could not fetch validation records. Check the AWS console: $cert_arn"
     fi
 
-    prompt "DNS 레코드 추가 후 Enter를 눌러 검증을 기다립니다..."
+    prompt "Press Enter after adding the DNS record to wait for validation..."
     read -er
 
-    info "인증서 검증 대기 중 (최대 5분)..."
+    info "Waiting for certificate validation (up to 5 minutes)..."
     if aws acm wait certificate-validated \
         --certificate-arn "$cert_arn" \
         --region "$region" 2>/dev/null; then
-        ok "인증서 검증 완료!"
+        ok "Certificate validated!"
     else
-        warn "검증 대기 시간 초과. 배포를 계속하지만, 인증서 검증이 완료되어야 HTTPS가 동작합니다."
+        warn "Validation wait timed out. Deployment will continue, but HTTPS will not work until the certificate is validated."
     fi
 
     _set_cdk_context "acm_certificate_arn" "$cert_arn"
-    ok "cdk.json에 인증서 ARN 저장 완료"
+    ok "Certificate ARN saved to cdk.json"
 }
 
 _set_cdk_context() {
@@ -295,10 +296,10 @@ _set_cdk_context() {
 }
 
 # ──────────────────────────────────────────────
-# 6. CDK 부트스트랩
+# 6. CDK Bootstrap
 # ──────────────────────────────────────────────
 ensure_bootstrap() {
-    info "CDK 부트스트랩 확인 중..."
+    info "Checking CDK bootstrap..."
 
     local account region
     account="$CDK_DEFAULT_ACCOUNT"
@@ -322,47 +323,47 @@ ensure_bootstrap() {
     fi
 
     if [[ "$stack_status" == "NOT_FOUND" || "$stack_status" == *"ROLLBACK"* || "$current_version" -lt "$min_version" ]]; then
-        info "CDK 부트스트랩 실행 중... (현재 버전: $current_version, 필요 버전: $min_version+)"
+        info "Running CDK bootstrap... (current version: $current_version, required: $min_version+)"
         cd "$INFRA_DIR"
         cdk bootstrap "aws://$account/$region"
-        ok "CDK 부트스트랩 완료"
+        ok "CDK bootstrap complete"
     else
-        ok "CDK 부트스트랩 이미 완료 (버전: $current_version)"
+        ok "CDK bootstrap already done (version: $current_version)"
     fi
 }
 
 # ──────────────────────────────────────────────
-# 7. 의존성 설치
+# 7. Install Dependencies
 # ──────────────────────────────────────────────
 install_dependencies() {
-    info "Python 의존성 설치 중..."
+    info "Installing Python dependencies..."
     cd "$PROJECT_ROOT"
     uv sync --group dev --group infra
-    ok "의존성 설치 완료"
+    ok "Dependencies installed"
 }
 
 # ──────────────────────────────────────────────
-# 8. CDK 배포
+# 8. CDK Deploy
 # ──────────────────────────────────────────────
 deploy_stacks() {
     cd "$INFRA_DIR"
 
-    info "변경사항 확인 중..."
+    info "Reviewing changes..."
     echo ""
     cdk diff 2>&1 || true
     echo ""
 
     while true; do
-        prompt "위 변경사항을 배포하시겠습니까? [y/N]: "
+        prompt "Deploy the above changes? [y/N]: "
         read -er confirm
         case "${confirm}" in
             y|Y) break ;;
-            n|N|"") info "배포를 취소합니다."; exit 0 ;;
-            *) warn "y 또는 N을 입력하세요." ;;
+            n|N|"") info "Deployment cancelled."; exit 0 ;;
+            *) warn "Please enter y or N." ;;
         esac
     done
 
-    info "CDK 스택 배포 중... (Docker 빌드 포함, 수 분 소요될 수 있습니다)"
+    info "Deploying CDK stacks... (includes Docker build, may take several minutes)"
     echo ""
 
     cdk deploy --all \
@@ -370,55 +371,55 @@ deploy_stacks() {
         --no-path-metadata \
         --outputs-file "$PROJECT_ROOT/cdk-outputs.json"
 
-    ok "배포 완료!"
+    ok "Deployment complete!"
     echo ""
 
     if [[ -f "$PROJECT_ROOT/cdk-outputs.json" ]]; then
-        info "배포 결과:"
+        info "Deployment outputs:"
         jq '.' "$PROJECT_ROOT/cdk-outputs.json"
     fi
 }
 
 # ──────────────────────────────────────────────
-# 9. CDK 삭제
+# 9. CDK Destroy
 # ──────────────────────────────────────────────
 destroy_stacks() {
     cd "$INFRA_DIR"
 
-    warn "모든 CDK 스택을 삭제합니다."
+    warn "This will delete all CDK stacks."
     echo ""
-    echo "삭제될 스택:"
+    echo "Stacks to be deleted:"
     cdk list 2>/dev/null || true
     echo ""
 
     while true; do
-        prompt "정말 모든 스택을 삭제하시겠습니까? [y/N]: "
+        prompt "Are you sure you want to delete all stacks? [y/N]: "
         read -er confirm
         case "${confirm}" in
             y|Y) break ;;
-            n|N|"") info "삭제를 취소합니다."; exit 0 ;;
-            *) warn "y 또는 N을 입력하세요." ;;
+            n|N|"") info "Deletion cancelled."; exit 0 ;;
+            *) warn "Please enter y or N." ;;
         esac
     done
 
-    info "CDK 스택 삭제 중..."
+    info "Deleting CDK stacks..."
     cdk destroy --all --force
 
-    ok "모든 스택이 삭제되었습니다!"
+    ok "All stacks have been deleted!"
 
-    # cdk-outputs.json 삭제
+    # Delete cdk-outputs.json
     [[ -f "$PROJECT_ROOT/cdk-outputs.json" ]] && rm -f "$PROJECT_ROOT/cdk-outputs.json"
 }
 
 # ──────────────────────────────────────────────
-# 메인 실행
+# Main
 # ──────────────────────────────────────────────
 usage() {
     echo "Usage: $0 [command]"
     echo ""
     echo "Commands:"
-    echo "  deploy   배포 (기본값)"
-    echo "  destroy  모든 스택 삭제"
+    echo "  deploy   Deploy (default)"
+    echo "  destroy  Delete all stacks"
     echo ""
 }
 
@@ -454,7 +455,7 @@ main() {
             ensure_bootstrap
             deploy_stacks
             echo ""
-            ok "모든 배포가 완료되었습니다!"
+            ok "All deployment steps complete!"
             ;;
         destroy)
             check_prerequisites
@@ -467,10 +468,11 @@ main() {
             exit 0
             ;;
         *)
-            error "알 수 없는 명령: $command"
+            error "Unknown command: $command"
             ;;
     esac
     echo ""
 }
 
 main "$@"
+

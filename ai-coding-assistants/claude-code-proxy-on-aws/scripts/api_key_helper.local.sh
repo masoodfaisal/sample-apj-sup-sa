@@ -39,7 +39,7 @@ print(payload.get("virtual_key", {}).get("secret", ""))
 ')"
 
 if [[ -z "${TOKEN}" ]]; then
-  echo "ERROR: Local token service에서 키를 받지 못했습니다: ${RESPONSE}" >&2
+  echo "ERROR: Failed to retrieve key from local token service: ${RESPONSE}" >&2
   exit 1
 fi
 
