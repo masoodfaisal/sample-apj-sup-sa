@@ -1,0 +1,6 @@
+{
+  "apiKeyHelper": "/absolute/path/to/scripts/api_key_helper.sh",
+  "env": {
+    "ANTHROPIC_BASE_URL": "<http-or-https>://<your-runtime-host>"
+  }
+}

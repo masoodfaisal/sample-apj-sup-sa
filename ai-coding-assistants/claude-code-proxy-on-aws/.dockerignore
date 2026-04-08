@@ -1,0 +1,8 @@
+*
+!gateway/
+!shared/
+!migrations/
+!scripts/migrate-entrypoint.sh
+!pyproject.toml
+**/__pycache__
+**/*.pyc
