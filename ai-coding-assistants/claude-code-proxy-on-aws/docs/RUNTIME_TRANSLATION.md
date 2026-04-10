@@ -495,7 +495,11 @@ Important consequence:
   - May be dropped entirely when prior tool-use history is incompatible.
 - `metadata`
   - Accepted by validation.
-  - Not forwarded to Bedrock `requestMetadata`.
+  - Not forwarded directly to Bedrock `requestMetadata`.
+- Server-side request metadata
+  - Runtime injects Bedrock `requestMetadata.request_id = context.request_id`.
+  - Runtime injects Bedrock `requestMetadata.user_id = str(context.user.id)` when user resolution succeeds.
+  - Runtime injects Bedrock `requestMetadata.team_id = str(context.team.id)` when a team is resolved.
 
 ### Message and system content blocks
 
@@ -1033,7 +1037,7 @@ What is not currently implemented:
 
 ## Current Known Gaps
 
-- Request `metadata` is accepted but ignored instead of being forwarded into Bedrock `requestMetadata`.
+- Client-supplied request `metadata` is accepted but still ignored instead of being forwarded into Bedrock `requestMetadata`.
 - Official Anthropic `tool_result.is_error` is not translated into Bedrock `toolResult.status`.
 - Official Anthropic `tool_choice.none` has no explicit runtime handling.
 - Anthropic tool names can be longer than Bedrock's 64-character limit, and the runtime does not pre-validate to the Bedrock limit.

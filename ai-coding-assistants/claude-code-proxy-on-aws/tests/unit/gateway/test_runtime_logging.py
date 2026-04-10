@@ -218,11 +218,111 @@ async def test_gateway_service_returns_resolved_bedrock_model_id_to_response_con
 
 
 @pytest.mark.asyncio
+async def test_gateway_service_injects_request_metadata_for_bedrock_converse() -> None:
+    policy_chain = SimpleNamespace(evaluate=AsyncMock())
+
+    async def evaluate(context):
+        context.user = SimpleNamespace(id="user-123")
+        context.team = SimpleNamespace(id="team-456")
+        context.virtual_key = SimpleNamespace(id="vk-123")
+        context.resolved_model = SimpleNamespace(
+            id="model-id",
+            bedrock_model_id="zai.glm-5",
+        )
+
+    policy_chain.evaluate.side_effect = evaluate
+    response_converter = SimpleNamespace(
+        convert_response=Mock(return_value=SimpleNamespace()),
+        extract_usage=Mock(return_value=UsageInfo()),
+    )
+    usage_service = SimpleNamespace(
+        record_success=AsyncMock(),
+        record_blocked_request=AsyncMock(),
+        record_error=AsyncMock(),
+    )
+    bedrock_client = SimpleNamespace(
+        converse=AsyncMock(return_value={"output": {"message": {"content": []}}})
+    )
+    service = GatewayService(
+        policy_chain=policy_chain,
+        request_converter=SimpleNamespace(
+            convert_request=Mock(return_value={"modelId": "zai.glm-5"})
+        ),
+        response_converter=response_converter,
+        bedrock_client=bedrock_client,
+        stream_processor=SimpleNamespace(stream_response=Mock()),
+        usage_service=usage_service,
+        session=SimpleNamespace(commit=AsyncMock()),
+        model_catalog_repo=SimpleNamespace(),
+        metrics=_stub_metrics(),
+    )
+
+    await service.process_message(_build_request(), "sk-test", "req-metadata")
+
+    assert bedrock_client.converse.call_args.args[0]["requestMetadata"] == {
+        "request_id": "req-metadata",
+        "user_id": "user-123",
+        "team_id": "team-456",
+    }
+
+
+@pytest.mark.asyncio
+async def test_gateway_service_injects_request_metadata_for_bedrock_stream() -> None:
+    policy_chain = SimpleNamespace(evaluate=AsyncMock())
+
+    async def evaluate(context):
+        context.user = SimpleNamespace(id="user-123")
+        context.team = SimpleNamespace(id="team-456")
+        context.virtual_key = SimpleNamespace(id="vk-123")
+        context.resolved_model = SimpleNamespace(
+            id="model-id",
+            bedrock_model_id="zai.glm-5",
+        )
+
+    policy_chain.evaluate.side_effect = evaluate
+    usage_service = SimpleNamespace(
+        record_success=AsyncMock(),
+        record_blocked_request=AsyncMock(),
+        record_error=AsyncMock(),
+    )
+    bedrock_client = SimpleNamespace(
+        converse_stream=AsyncMock(return_value={"stream": []}),
+    )
+    stream_processor = SimpleNamespace(stream_response=Mock(return_value=iter(())))
+    service = GatewayService(
+        policy_chain=policy_chain,
+        request_converter=SimpleNamespace(
+            convert_request=Mock(return_value={"modelId": "zai.glm-5"})
+        ),
+        response_converter=SimpleNamespace(
+            convert_response=Mock(),
+            extract_usage=Mock(return_value=UsageInfo()),
+        ),
+        bedrock_client=bedrock_client,
+        stream_processor=stream_processor,
+        usage_service=usage_service,
+        session=SimpleNamespace(commit=AsyncMock()),
+        model_catalog_repo=SimpleNamespace(),
+        metrics=_stub_metrics(),
+    )
+
+    request = _build_request().model_copy(update={"stream": True})
+    await service.process_message_stream(request, "sk-test", "req-stream-metadata")
+
+    assert bedrock_client.converse_stream.call_args.args[0]["requestMetadata"] == {
+        "request_id": "req-stream-metadata",
+        "user_id": "user-123",
+        "team_id": "team-456",
+    }
+
+
+@pytest.mark.asyncio
 async def test_gateway_service_logs_full_payloads_when_enabled(caplog) -> None:
     policy_chain = SimpleNamespace(evaluate=AsyncMock())
 
     async def evaluate(context):
         context.user = SimpleNamespace(id="user-123")
+        context.team = SimpleNamespace(id="team-456")
         context.virtual_key = SimpleNamespace(id="vk-123")
         context.resolved_model = SimpleNamespace(
             id="model-id",
@@ -263,6 +363,7 @@ async def test_gateway_service_logs_full_payloads_when_enabled(caplog) -> None:
     assert '"model":"claude-sonnet-4-6"' in caplog.text
     assert "runtime bedrock request payload request_id=req-payloads" in caplog.text
     assert '"modelId":"zai.glm-5"' in caplog.text
+    assert '"requestMetadata":{"request_id":"req-payloads","user_id":"user-123","team_id":"team-456"}' in caplog.text
     assert "runtime bedrock response payload request_id=req-payloads" in caplog.text
 
 

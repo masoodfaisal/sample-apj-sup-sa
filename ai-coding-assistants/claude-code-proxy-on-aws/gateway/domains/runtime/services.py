@@ -104,6 +104,20 @@ class GatewayService:
             self._serialize_payload(payload),
         )
 
+    @staticmethod
+    def _inject_bedrock_request_metadata(
+        request: dict[str, object], context: PolicyContext
+    ) -> dict[str, object]:
+        existing = request.get("requestMetadata")
+        request_metadata = dict(existing) if isinstance(existing, dict) else {}
+        request_metadata["request_id"] = context.request_id
+        if context.user is not None and getattr(context.user, "id", None) is not None:
+            request_metadata["user_id"] = str(context.user.id)
+        if context.team is not None and getattr(context.team, "id", None) is not None:
+            request_metadata["team_id"] = str(context.team.id)
+        request["requestMetadata"] = request_metadata
+        return request
+
     async def process_message(
         self,
         request: MessageRequest,
@@ -123,6 +137,7 @@ class GatewayService:
                 context.cache_policy,
                 context.max_tokens_override,
             )
+            bedrock_request = self._inject_bedrock_request_metadata(bedrock_request, context)
             self._log_bedrock_request_payload(request_id, bedrock_request)
             response = await self._bedrock_client.converse(bedrock_request, context.resolved_model)
             self._log_bedrock_response_payload(request_id, response)
@@ -175,6 +190,7 @@ class GatewayService:
                 context.cache_policy,
                 context.max_tokens_override,
             )
+            bedrock_request = self._inject_bedrock_request_metadata(bedrock_request, context)
             self._log_bedrock_request_payload(request_id, bedrock_request)
             bedrock_stream = await self._bedrock_client.converse_stream(
                 bedrock_request,
