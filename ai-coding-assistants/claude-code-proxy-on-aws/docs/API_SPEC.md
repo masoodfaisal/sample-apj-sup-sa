@@ -166,7 +166,8 @@ Extra top-level request fields are accepted by validation but ignored unless the
 
 Current converter behavior notes:
 
-- `metadata` is accepted by validation but ignored for Bedrock Converse requests.
+- Client-supplied `metadata` is accepted by validation but not forwarded directly to Bedrock.
+- The gateway injects Bedrock `requestMetadata` with `request_id`, `user_id`, and `team_id` (when a team is resolved) for invocation-log filtering.
 
 Non-streaming response:
 
