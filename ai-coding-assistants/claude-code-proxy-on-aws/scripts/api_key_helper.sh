@@ -8,9 +8,9 @@ TOKEN_SERVICE_URL="https://${API_GW_ID}.execute-api.${AWS_REGION}.amazonaws.com/
 
 if ! eval "$(aws configure export-credentials --profile ${AWS_PROFILE} --format env 2>/dev/null)"; then
   if [[ -n "${AWS_PROFILE}" ]]; then
-    echo "ERROR: aws sso login --profile ${AWS_PROFILE} 을 실행하세요" >&2
+    echo "ERROR: Run 'aws sso login --profile ${AWS_PROFILE}'" >&2
   else
-    echo "ERROR: aws sso login 을 실행하세요" >&2
+    echo "ERROR: Run 'aws sso login'" >&2
   fi
   exit 1
 fi
@@ -36,7 +36,7 @@ print(payload.get("virtual_key", {}).get("secret", ""))
 ' 2>/dev/null)"
 
 if [[ -z "${TOKEN}" ]]; then
-  echo "ERROR: Token Service에서 키를 받지 못했습니다: ${RESPONSE}" >&2
+  echo "ERROR: Failed to retrieve key from token service: ${RESPONSE}" >&2
   exit 1
 fi
 

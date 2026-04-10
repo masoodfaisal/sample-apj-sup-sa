@@ -1,68 +1,68 @@
 # Infrastructure (AWS CDK)
 
-현재 CDK 앱은 2개 스택(`FoundationStack`, `ServiceStack`)과 supporting constructs로 구성됩니다. 배포 스크립트(`scripts/deploy.sh`) 대신 CDK CLI를 직접 사용할 때 참고하세요.
+The CDK app consists of 2 stacks (`FoundationStack`, `ServiceStack`) and supporting constructs. Refer to this guide when using the CDK CLI directly instead of the deployment script (`scripts/deploy.sh`).
 
-## 사전 요구사항
+## Prerequisites
 
 - Python 3.13 + [uv](https://docs.astral.sh/uv/)
 - Node.js + CDK CLI (`npm install -g aws-cdk`)
-- AWS 자격증명 설정 완료
-- Docker 실행 중 (컨테이너 이미지 빌드)
+- AWS credentials configured
+- Docker running (for container image builds)
 
-## 의존성 설치
+## Install Dependencies
 
 ```bash
-# 프로젝트 루트에서
+# From the project root
 uv sync --group dev --group infra
 ```
 
-## CDK 부트스트랩 (최초 1회)
+## CDK Bootstrap (First Time Only)
 
 ```bash
 cd infra
 cdk bootstrap
 ```
 
-## Synth (템플릿 생성만)
+## Synth (Template Generation Only)
 
 ```bash
 cd infra
 
-# HTTPS 사용 시 (ACM 인증서 필요)
+# With HTTPS (ACM certificate required)
 cdk synth \
   -c identity_store_id=d-1234567890 \
   -c acm_certificate_arn=<YOUR_ACM_CERTIFICATE_ARN>
 
-# HTTPS 없이 (HTTP만)
+# Without HTTPS (HTTP only)
 cdk synth -c identity_store_id=d-1234567890
 ```
 
-## 배포
+## Deploy
 
 ```bash
 cd infra
 
-# 스택 목록 확인
+# List stacks
 cdk list
 
-# 변경사항 확인
+# Review changes
 cdk diff
 
-# 전체 배포
+# Deploy all stacks
 cdk deploy --all \
   -c identity_store_id=d-1234567890 \
   --require-approval broadening
 
-# ACM 인증서 지정하여 배포
+# Deploy with ACM certificate
 cdk deploy --all \
   -c identity_store_id=d-1234567890 \
   -c acm_certificate_arn=<YOUR_ACM_CERTIFICATE_ARN> \
   --require-approval broadening
 ```
 
-## 환경별 배포
+## Environment-Specific Deployment
 
-`cdk.json`의 context를 오버라이드하여 다른 환경에 배포할 수 있습니다:
+Override `cdk.json` context to deploy to a different environment:
 
 ```bash
 cdk deploy --all \
@@ -71,15 +71,15 @@ cdk deploy --all \
   -c identity_store_id=d-1234567890
 ```
 
-`environment=prod`일 때 자동으로 적용되는 설정:
-- 로그 보존: 1주 → 1개월
-- Aurora 삭제 보호 활성화
-- 스냅샷 기반 삭제 정책
+Settings automatically applied when `environment=prod`:
+- Log retention: 1 week → 1 month
+- Aurora deletion protection enabled
+- Snapshot-based deletion policy
 
-## 스택 구조
+## Stack Structure
 
 ```
-FoundationStack    VPC, 서브넷, SG, VPC Endpoints, Aurora, KMS, Secrets Manager
+FoundationStack    VPC, Subnets, SGs, VPC Endpoints, Aurora, KMS, Secrets Manager
     |
     +-- ServiceStack       AMP, ECS Cluster, ECR, ALB, API Gateway
             |
@@ -87,17 +87,17 @@ FoundationStack    VPC, 서브넷, SG, VPC Endpoints, Aurora, KMS, Secrets Manag
             +-- GatewayTaskDefinition   ECS migrate/gateway-app/adot containers
 ```
 
-런타임 엔드포인트(`/v1/healthz`, `/v1/models`, `/v1/messages`)는 API Gateway를 거치지 않고 퍼블릭 ALB로 직접 들어갑니다.
+Runtime endpoints (`/v1/healthz`, `/v1/models`, `/v1/messages`) go directly to the public ALB without passing through API Gateway.
 
-## 주요 설정값 (cdk.json)
+## Key Configuration Values (cdk.json)
 
-| 키 | 기본값 | 설명 |
-|---|---|---|
-| `environment` | `dev` | 배포 환경 |
-| `region` | `ap-northeast-2` | AWS 리전 |
-| `app_name` | `claude-proxy` | 리소스 이름 접두사 |
-| `identity_store_id` | _(필수)_ | IAM Identity Center identity store ID |
+| Key | Default | Description |
+|-----|---------|-------------|
+| `environment` | `dev` | Deployment environment |
+| `region` | `ap-northeast-2` | AWS region |
+| `app_name` | `claude-proxy` | Resource name prefix |
+| `identity_store_id` | _(required)_ | IAM Identity Center identity store ID |
 | `vpc_cidr` | `10.0.0.0/16` | VPC CIDR |
-| `aurora_min_capacity` | `0.5` | Aurora Serverless 최소 ACU |
-| `aurora_max_capacity` | `1.0` | Aurora Serverless 최대 ACU |
-| `acm_certificate_arn` | _(없음)_ | ACM 인증서 ARN (없으면 HTTP만) |
+| `aurora_min_capacity` | `0.5` | Aurora Serverless minimum ACU |
+| `aurora_max_capacity` | `1.0` | Aurora Serverless maximum ACU |
+| `acm_certificate_arn` | _(none)_ | ACM certificate ARN (HTTP only if not provided) |

@@ -81,4 +81,4 @@ If code, migration, and docs disagree, trust code and migration, then fix docs.
 Record repeated agent mistakes in this section. If the same avoidable mistake happens twice, add a dated bullet here with the symptom, the correct rule, and where to look next time. Record it here, not in a separate note.
 
 - Add new entries below this line.
-- 2026-04-05: 코드 리뷰 시 에러 경로를 끝까지 추적하지 않고 조기 종료하는 오류. `sync/services.py`에서 rollback 이후 `update_run_by_id(FAILED)`로 정상 처리되는 코드를 보지 않고 "STARTED row가 영구 잔류"라고 잘못 보고함. **규칙**: 에러 경로 리뷰 시 rollback/catch 이후 코드까지 반드시 완전히 추적할 것. "문제를 발견했다"는 확신이 생겨도 해당 코드 블록 끝까지 읽을 것.
+- 2026-04-05: Prematurely terminated error-path review without tracing to the end. In `sync/services.py`, failed to see that `update_run_by_id(FAILED)` correctly handles the state after rollback, and incorrectly reported "STARTED row persists permanently." **Rule**: When reviewing error paths, always trace completely through code after rollback/catch. Even when confident a bug has been found, read to the end of the code block.

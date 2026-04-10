@@ -81,6 +81,6 @@ def test_local_api_key_helper_surfaces_error_payloads(tmp_path: Path) -> None:
 
     assert result.returncode == 1
     assert (
-        'ERROR: Local token service에서 키를 받지 못했습니다: '
+        'ERROR: Failed to retrieve key from local token service: '
         '{"error":{"code":"authentication_failed"}}'
     ) in result.stderr

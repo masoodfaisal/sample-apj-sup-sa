@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""AWS Bedrock Claude 모델 및 가격 조회. list_price_lists + CSV 방식."""
+"""AWS Bedrock Claude model and pricing lookup. Uses list_price_lists + CSV approach."""
 
 import argparse
 import json
@@ -25,7 +25,7 @@ EXCLUDE_KEYWORDS = [
     "lctx",
 ]
 
-# 기본 표시할 usageType (터미널 출력용)
+# Default usageTypes to display (for terminal output)
 DISPLAY_TYPES = [
     "InputTokenCount",
     "OutputTokenCount",
@@ -61,7 +61,7 @@ def normalize(model):
 
 
 def extract_usage_type(usage_type):
-    """usageType에서 핵심 타입 추출"""
+    """Extract core type from usageType."""
     # "USE1-MP:USE1_CacheReadInputTokenCount_Global-Units" -> "CacheReadInputTokenCount"
     match = re.search(
         r"((?:CacheRead|CacheWrite1h|CacheWrite)?(?:Input|Output|Response)TokenCount)",
@@ -120,7 +120,7 @@ def fetch_claude_pricing(verbose=False):
                 if any(kw in desc for kw in EXCLUDE_KEYWORDS):
                     continue
 
-                # usageType (14번째 컬럼, index 13)
+                # usageType (14th column, index 13)
                 usage_type_raw = cols[13] if len(cols) > 13 else ""
                 usage_type = extract_usage_type(usage_type_raw)
                 if not usage_type:
@@ -141,7 +141,7 @@ def fetch_claude_pricing(verbose=False):
                 if model not in pricing:
                     pricing[model] = {}
 
-                # 최저가 유지
+                # Keep lowest price
                 if usage_type not in pricing[model] or float(price) < float(
                     pricing[model][usage_type]
                 ):
@@ -151,9 +151,9 @@ def fetch_claude_pricing(verbose=False):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="AWS Bedrock Claude 가격 조회")
-    parser.add_argument("--json", action="store_true", help="JSON 출력")
-    parser.add_argument("--save", metavar="FILE", help="파일 저장")
+    parser = argparse.ArgumentParser(description="AWS Bedrock Claude pricing lookup")
+    parser.add_argument("--json", action="store_true", help="JSON output")
+    parser.add_argument("--save", metavar="FILE", help="Save to file")
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args()
 
@@ -174,7 +174,7 @@ def main():
         else:
             print(out)
     else:
-        # 헤더
+        # Header
         headers = ["Model"] + [
             t.replace("TokenCount", "").replace("Input", "In").replace("Output", "Out")
             for t in DISPLAY_TYPES
