@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "claude-code-proxy-on-aws"
+version = "0.1.0"
+description = "CDK and application scaffolding for Claude Code Proxy on AWS"
+readme = {text = "CDK and application scaffolding for Claude Code Proxy on AWS", content-type = "text/markdown"}
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "alembic>=1.16,<2",
+    "asyncpg>=0.30,<1",
+    "boto3>=1.39,<2",
+    "fastapi>=0.116,<1",
+    "opentelemetry-api>=1.28,<2",
+    "opentelemetry-sdk>=1.28,<2",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.28,<2",
+    "uvicorn[standard]>=0.34,<1",
+    "pydantic>=2.11,<3",
+    "sqlalchemy[asyncio]>=2.0.41,<3",
+]
+
+[dependency-groups]
+infra = [
+    "aws-cdk-lib==2.246.0",
+    "constructs>=10,<11",
+]
+dev = [
+    "hypothesis>=6.131,<7",
+    "pytest>=8.3,<9",
+    "pytest-asyncio>=0.25,<1",
+    "pytest-cov>=6,<7",
+    "ruff>=0.11,<0.12",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "I",
+]
+
+[tool.setuptools.packages.find]
+include = ["gateway*", "infra*", "shared*"]

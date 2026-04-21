@@ -1,0 +1,17 @@
+ecs-mcp-server.log
+.venv/
+.hypothesis/
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+*.egg-info/
+.python-version
+cdk.out/
+infra/cdk.out/
+infra/cdk.context.json
+
+cdk-outputs.json
+.kiro/settings/
+.sisyphus/
+.claude/
+.env.local

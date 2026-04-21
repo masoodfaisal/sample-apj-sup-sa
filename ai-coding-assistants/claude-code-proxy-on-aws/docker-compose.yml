@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: claude_proxy
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dev -d claude_proxy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  gateway:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: "postgresql+asyncpg://dev:dev@postgres:5432/claude_proxy"
+      ENVIRONMENT: "local"
+      ADMIN_ORIGIN_ENFORCE: "false"
+      AWS_REGION: "ap-northeast-2"
+      KMS_KEY_ID: "local-dev-placeholder"
+      VIRTUAL_KEY_TTL_MS: "300000"
+      LOG_LEVEL: "INFO"
+      HOME: "/tmp/app-home"
+      AWS_CONFIG_SOURCE_DIR: "/aws-config"
+      OTLP_GRPC_ENDPOINT: ""
+    env_file:
+      - path: .env.local
+        required: false
+    volumes:
+      - ./gateway:/app/gateway:ro
+      - ./shared:/app/shared:ro
+      - ./migrations:/app/migrations:ro
+      - ./scripts:/app/scripts:ro
+      - ~/.aws:/aws-config:ro
+    command: ["sh", "/app/scripts/local-entrypoint.sh"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:

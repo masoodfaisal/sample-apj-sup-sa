@@ -1,0 +1,52 @@
+services:
+  gateway:
+    environment:
+      OTLP_GRPC_ENDPOINT: "http://otel-collector:4317"
+      OTLP_EXPORT_INTERVAL_MILLIS: "30000"
+    depends_on:
+      otel-collector:
+        condition: service_started
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.103.1
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./assets/observability/otel-collector.local.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "4317:4317"
+      - "9464:9464"
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    volumes:
+      - ./assets/observability/prometheus.local.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      otel-collector:
+        condition: service_started
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    environment:
+      GF_SECURITY_ADMIN_USER: "admin"
+      GF_SECURITY_ADMIN_PASSWORD: "admin"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./assets/observability/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./assets/observability/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./assets/observability/grafana/dashboard.local.json:/var/lib/grafana/dashboards/claude-code-proxy-gateway.json:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      prometheus:
+        condition: service_started
+
+volumes:
+  prometheus_data:
+  grafana_data:
