@@ -49,6 +49,9 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 MILVUS_HOST = os.getenv("MILVUS_HOST", "milvus-standalone")
 MILVUS_PORT = os.getenv("MILVUS_PORT", "19530")
+# since be default there is no auth token and ssm param doesnot allow empty string so we added a space
+MILVUS_TOKEN = os.getenv("MILVUS_TOKEN", "").strip()
+MILVUS_SCHEME = os.getenv("MILVUS_SCHEME", "http")  # use "https" when TLS is enabled
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "sk-123456")
 OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "http://ai-gateway:4000")
 MODEL_NAME = os.getenv("MODEL_NAME", "llama-distributed")
@@ -175,8 +178,8 @@ def create_memory():
             "provider": "milvus",
             "config": {
                 "collection_name": "mem0_agent_memory",
-                "url": f"http://{MILVUS_HOST}:{MILVUS_PORT}",
-                "token": "",
+                "url": f"{MILVUS_SCHEME}://{MILVUS_HOST}:{MILVUS_PORT}",
+                "token": MILVUS_TOKEN,
                 "embedding_model_dims": get_embedding_dim(EMBEDDING_MODEL),
             }
         },
@@ -240,11 +243,14 @@ async def init_agent():
     all_tools = local_tools + mcp_tools
     logger.info(f"Creating ReAct agent with {len(all_tools)} tools")
     
-    # In LangGraph v1.0+, system prompt is passed via SystemMessage in the invoke call
-    # or by binding it to the model
+    # Pass the system prompt via `prompt` so it's injected once at the start
+    # of the message list. Qwen's chat template requires the system message
+    # to be first, and passing SystemMessage in `messages` on every turn
+    # causes duplicates when combined with the checkpointer.
     app_graph = create_react_agent(
-        llm, 
+        llm,
         all_tools,
+        prompt=SYSTEM_PROMPT_V2,
         checkpointer=checkpointer
     )
     
@@ -277,12 +283,11 @@ async def chat(request: ChatRequest):
         logger.error("Agent not initialized yet")
         raise HTTPException(status_code=503, detail="Agent not initialized yet")
     
-    # Invoke the agent with system prompt + user message
+    # Only send the new user message; the system prompt is bound to the
+    # agent and the checkpointer replays prior turns. This prevents
+    # duplicate/misplaced system messages that break Qwen's chat template.
     result = await app_graph.ainvoke(
-        {"messages": [
-            SystemMessage(content=SYSTEM_PROMPT),
-            HumanMessage(content=request.message)
-        ]},
+        {"messages": [HumanMessage(content=request.message)]},
         config={"configurable": {
             "thread_id": request.thread_id,
             "memory_client": memory

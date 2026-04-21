@@ -95,3 +95,23 @@ variable "enable_scheduled_scaling" {
   type        = bool
   default     = false
 }
+
+variable "openai_api_key" {
+  description = "API key used by agent/aigateway (stored in SSM Parameter Store as SecureString). Override via TF_VAR_openai_api_key or tfvars; do not commit real secrets."
+  type        = string
+  sensitive   = true
+  default     = "sk-123456"
+}
+
+variable "milvus_token" {
+  description = "Auth token for Milvus (format: 'user:password' or API token). Stored in SSM SecureString. Leave blank if Milvus auth is disabled."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "log_retention_in_days" {
+  description = "CloudWatch log group retention in days for ECS service logs. Valid values: 1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1096, 1827, 2192, 2557, 2922, 3288, 3653. Use 0 for never expire."
+  type        = number
+  default     = 1
+}

@@ -143,18 +143,29 @@ resource "aws_iam_role_policy" "ecs_execution_ssm" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Effect   = "Allow"
-      Action   = ["ssm:GetParameters", "ssm:GetParameter"]
-      Resource = aws_ssm_parameter.aigateway_config.arn
-    }]
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = ["ssm:GetParameters", "ssm:GetParameter"]
+        Resource = [
+          aws_ssm_parameter.aigateway_config.arn,
+          aws_ssm_parameter.openai_api_key.arn,
+          aws_ssm_parameter.milvus_token.arn,
+        ]
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt"]
+        Resource = "arn:aws:kms:${var.aws_region}:*:alias/aws/ssm"
+      }
+    ]
   })
 }
 
 # --- CloudWatch Log Groups ---
 resource "aws_cloudwatch_log_group" "app" {
   name              = "/ecs/${var.project_name}/app"
-  retention_in_days = 1
+  retention_in_days = var.log_retention_in_days
 
   tags = {
     Name = "${var.project_name}-app-logs"
@@ -163,7 +174,7 @@ resource "aws_cloudwatch_log_group" "app" {
 
 resource "aws_cloudwatch_log_group" "agent" {
   name              = "/ecs/${var.project_name}/agent"
-  retention_in_days = 1
+  retention_in_days = var.log_retention_in_days
 
   tags = {
     Name = "${var.project_name}-agent-logs"
@@ -172,7 +183,7 @@ resource "aws_cloudwatch_log_group" "agent" {
 
 resource "aws_cloudwatch_log_group" "mcp" {
   name              = "/ecs/${var.project_name}/mcp"
-  retention_in_days = 1
+  retention_in_days = var.log_retention_in_days
 
   tags = {
     Name = "${var.project_name}-mcp-logs"
@@ -181,7 +192,7 @@ resource "aws_cloudwatch_log_group" "mcp" {
 
 resource "aws_cloudwatch_log_group" "milvus" {
   name              = "/ecs/${var.project_name}/milvus"
-  retention_in_days = 1
+  retention_in_days = var.log_retention_in_days
 
   tags = {
     Name = "${var.project_name}-milvus-logs"
@@ -190,7 +201,7 @@ resource "aws_cloudwatch_log_group" "milvus" {
 
 resource "aws_cloudwatch_log_group" "aigateway" {
   name              = "/ecs/${var.project_name}/aigateway"
-  retention_in_days = 1
+  retention_in_days = var.log_retention_in_days
 
   tags = {
     Name = "${var.project_name}-aigateway-logs"
@@ -199,7 +210,7 @@ resource "aws_cloudwatch_log_group" "aigateway" {
 
 resource "aws_cloudwatch_log_group" "jaeger" {
   name              = "/ecs/${var.project_name}/jaeger"
-  retention_in_days = 1
+  retention_in_days = var.log_retention_in_days
 
   tags = {
     Name = "${var.project_name}-jaeger-logs"
@@ -208,7 +219,7 @@ resource "aws_cloudwatch_log_group" "jaeger" {
 
 resource "aws_cloudwatch_log_group" "otel" {
   name              = "/ecs/${var.project_name}/otel-collector"
-  retention_in_days = 7
+  retention_in_days = var.log_retention_in_days
 
   tags = {
     Name = "${var.project_name}-otel-logs"
@@ -261,12 +272,37 @@ resource "aws_iam_role_policy" "ecs_task_otel" {
 
 # --- SSM Parameter Store for AI Gateway Config ---
 resource "aws_ssm_parameter" "aigateway_config" {
-  name  = "/${var.project_name}/aigateway/config"
-  type  = "String"
-  value = file("${path.module}/../code/ai-gateway/config.yaml")
+  name   = "/${var.project_name}/aigateway/config"
+  type   = "SecureString"
+  value  = file("${path.module}/../code/ai-gateway/config.yaml")
+  key_id = "alias/aws/ssm"
 
   tags = {
     Name = "${var.project_name}-aigateway-config"
+  }
+}
+
+# --- SSM Parameter Store for OpenAI API Key ---
+resource "aws_ssm_parameter" "openai_api_key" {
+  name   = "/${var.project_name}/openai/api_key"
+  type   = "SecureString"
+  value  = var.openai_api_key
+  key_id = "alias/aws/ssm"
+
+  tags = {
+    Name = "${var.project_name}-openai-api-key"
+  }
+}
+
+# --- SSM Parameter Store for Milvus Auth Token ---
+resource "aws_ssm_parameter" "milvus_token" {
+  name   = "/${var.project_name}/milvus/token"
+  type   = "SecureString"
+  value  = var.milvus_token != "" ? var.milvus_token : " " # SSM rejects empty values; use space as sentinel for "disabled"
+  key_id = "alias/aws/ssm"
+
+  tags = {
+    Name = "${var.project_name}-milvus-token"
   }
 }
 
@@ -277,11 +313,22 @@ resource "aws_iam_role_policy" "ecs_task_ssm" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Effect   = "Allow"
-      Action   = ["ssm:GetParameter"]
-      Resource = aws_ssm_parameter.aigateway_config.arn
-    }]
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = ["ssm:GetParameter"]
+        Resource = [
+          aws_ssm_parameter.aigateway_config.arn,
+          aws_ssm_parameter.openai_api_key.arn,
+          aws_ssm_parameter.milvus_token.arn,
+        ]
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt"]
+        Resource = "arn:aws:kms:${var.aws_region}:*:alias/aws/ssm"
+      }
+    ]
   })
 }
 
@@ -420,7 +467,6 @@ resource "aws_ecs_task_definition" "agent" {
     environment = [
       { name = "MILVUS_HOST", value = "milvus.internal" },
       { name = "MILVUS_PORT", value = "19530" },
-      { name = "OPENAI_API_KEY", value = "sk-123456" },
       { name = "OPENAI_BASE_URL", value = "http://aigateway.internal:4000" },
       { name = "MODEL_NAME", value = "llama-distributed" },
       { name = "MCP_HOST", value = "mcp.internal" },
@@ -428,6 +474,16 @@ resource "aws_ecs_task_definition" "agent" {
       { name = "OTEL_EXPORTER_OTLP_ENDPOINT", value = "http://otel.internal:4318/v1/traces" },
       { name = "OTEL_EXPORTER_OTLP_PROTOCOL", value = "http/protobuf" },
       { name = "HOME", value = "/tmp" }
+    ]
+    secrets = [
+      {
+        name      = "OPENAI_API_KEY"
+        valueFrom = aws_ssm_parameter.openai_api_key.arn
+      },
+      {
+        name      = "MILVUS_TOKEN"
+        valueFrom = aws_ssm_parameter.milvus_token.arn
+      }
     ]
     logConfiguration = {
       logDriver = "awslogs"
@@ -668,11 +724,14 @@ resource "aws_ecs_task_definition" "aigateway" {
       {
         name      = "CONFIG_CONTENT"
         valueFrom = aws_ssm_parameter.aigateway_config.arn
+      },
+      {
+        name      = "OPENAI_API_KEY"
+        valueFrom = aws_ssm_parameter.openai_api_key.arn
       }
     ]
 
     environment = [
-      { name = "OPENAI_API_KEY", value = "sk-123456" },
       { name = "HOME", value = "/tmp" }
     ]
     logConfiguration = {

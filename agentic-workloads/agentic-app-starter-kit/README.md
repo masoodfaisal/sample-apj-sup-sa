@@ -15,13 +15,13 @@ A complete starter kit for building AI-powered agentic applications with long-te
 The key for this repo is to utilise the following design choices for your agentic applications.
 
 ## Build with Open APIs
-Use as much Open APIs for all the components of your application. The benfits is that it would allow seamless selection of the right provider. This project adopted the following:
+Use as many Open APIs as possible for all the components of your application. The benefit is that it allows seamless selection of the right provider. This project adopted the following:
 
-**Model Flexibility with Open AI API :** Using Open AI APIs for model gives you flexibility to use any model or mix of models without changing code. You can use self hosted models (such as vLLM runtime) or Model service via API gateway which translates Open AI API call to specific model interface.
+**Model Flexibility with OpenAI API:** Using OpenAI APIs for models gives you the flexibility to use any model or mix of models without changing code. You can use self-hosted models (such as vLLM runtime) or a model service via an API gateway which translates OpenAI API calls to a specific model interface.
 
-**End to End Visibility wit OTEL :** Agentic application are distributed applications. You will need to collect data at diff stages to assess if a call meets a business requirements or not. Using Open Telemetry, will allow to not only trace all the components of your application but help evaluating your Agent. With OTEL, you can choose observability backend of your choice, such as Amazon CLoudWatch or Prometheus.
+**End-to-End Visibility with OTEL:** Agentic applications are distributed applications. You will need to collect data at different stages to assess if a call meets business requirements or not. Using OpenTelemetry will allow you to not only trace all the components of your application but also help evaluate your agent. With OTEL, you can choose an observability backend of your choice, such as Amazon CloudWatch or Prometheus.
 
-**Choice of Long Term Memory with Mem0 :** Using Mem0 protocol for integrating Long Term Memory for your agent, give you flexibility to use the best available choice in your eco-system. You can opt-in for Milvus (as in this repo) or any cloud provided memory store suitable for your eco-system without chaning your agent.
+**Choice of Long-Term Memory with Mem0:** Using the Mem0 protocol for integrating long-term memory for your agent gives you the flexibility to use the best available choice in your ecosystem. You can opt in for Milvus (as in this repo) or any cloud-provided memory store suitable for your ecosystem without changing your agent.
 
 ```mermaid
 flowchart TD
@@ -52,14 +52,14 @@ flowchart TD
 
 
 ## Comprehensive Evaluation
-Write evaluation with the user query and expected outcome (white box testing). And the user query and valdiate tools get called in order, LLM prompt for each interaction during the call and if the data sources are being accessed with right information. You will see in this repo that we have used the OTEL library to collect information and validate it using our evaluation code.
+Write evaluations with the user query and expected outcome (white-box testing). Use the user query to validate that tools get called in order, the LLM prompt for each interaction during the call, and whether the data sources are being accessed with the right information. You will see in this repo that we have used the OTEL library to collect information and validate it using our evaluation code.
 
 ## AI Gateway to access Models and Tools
-AI Gateway (LiteLLM) sits between the agent and the LLM backend and the MCP Tools. This approach provides a single point of configuration (such as API Key management, caching) for all different LLMs and MCP tooling. It also provides load balancing and failover capabilities while helping you implment policies such as rate limiting.
-LiteLLM AI Gateway, which is being used here, also provides protocol translation  from your LLM BAckend to an OPen AI API compatible format.
+The AI Gateway (LiteLLM) sits between the agent and the LLM backend and the MCP tools. This approach provides a single point of configuration (such as API key management and caching) for all different LLMs and MCP tooling. It also provides load balancing and failover capabilities while helping you implement policies such as rate limiting.
+The LiteLLM AI Gateway, which is being used here, also provides protocol translation from your LLM backend to an OpenAI API compatible format.
 
 ## Deployment Flexibility with Containers
-Container gives you flexibility to work independently of the hosting runtime. Using containers, you can use Amazon ECS or Amaazon EKS or Amazon AgentCore to deploy your applications as suitable for your scenario. You can choose to deploy on-prem using Kubernete or use other provider such as GKE to host your application. 
+Containers give you the flexibility to work independently of the hosting runtime. Using containers, you can use Amazon ECS, Amazon EKS, or Amazon AgentCore to deploy your applications as suitable for your scenario. You can choose to deploy on-prem using Kubernetes or use another provider such as GKE to host your application. 
 
 ---
 
@@ -166,7 +166,7 @@ The core AI agent built with LangGraph, featuring intelligent long-term memory v
 - **LangGraph** based agent workflow with conditional tool execution
 - **Mem0 Integration**: Managed long-term memory with automatic user session handling
 - **Hybrid Storage**: Uses Milvus for vector storage while Mem0 handles metadata
-- Local embeddings using `sentence-transformers` (using all-MiniLM-L6-v2 model from hugging face)
+- Local embeddings using `sentence-transformers` (using the all-MiniLM-L6-v2 model from Hugging Face)
 - Multi-step reasoning (e.g., recall favorite fruit → get its price)
 - OpenTelemetry instrumentation for distributed tracing
 
@@ -261,12 +261,12 @@ cd agentic-app-starter-kit
 
 ### Step 2: Configure LLM Backend
 
-**Option A: Use mlx on macos**
-For example, to run llama 8B on macos with mlx use the following:
+**Option A: Use mlx on macOS**
+For example, to run Llama 8B on macOS with mlx use the following:
 
 ```bash
 mkdir ~/llama-local
-cd ~llama-local
+cd ~/llama-local
 python3 -m venv .venv
 source .venv/bin/activate
 pip install mlx-lm
@@ -297,6 +297,8 @@ model_list:
       model: ollama/llama3.2
       api_base: http://host.docker.internal:11434
 ```
+This ai-gateway file is being uploaded to parameter store in the Terraform. 
+For production usgae, make sure that the ai-gateway is not comitted to the dev repo and you follow your organisation process to upload it to the parameter store.
 
 **Option D: OpenAI API**
 ```yaml
@@ -642,6 +644,7 @@ environment:
   - OTEL_EXPORTER_OTLP_HEADERS=Authorization=Basic <base64-output>
   - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
 ```
+If you want to use LangFuse as the Observability tool, there are dummy variables in the docker-compose file. Make sure to change them as needed and inject these vars at command line instead of commiting them.
 
 ### AWS (CloudWatch + X-Ray)
 
@@ -800,6 +803,7 @@ docker compose logs milvus
 curl http://localhost:9091/healthz
 ```
 
+**Security** Milvus support authentication and the code is designed to take this as enviornment variable which is being passed as terraform variable or store in the secret store. For development purpose, no auth is enabled.
 ---
 
 ### MCP Connection Failures
